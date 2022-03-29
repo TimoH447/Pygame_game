@@ -21,8 +21,6 @@ COMET_CAP = 10
 
 SHIP_HEIGHT, SHIP_WIDTH = 19, 19
 
-SCORE=0
-
 #IMAGES and SPRITES
 SHIP_IMG = pygame.image.load("Schiff.png")
 SHIP_IMG = pygame.transform.scale(SHIP_IMG, (SHIP_HEIGHT,SHIP_WIDTH))
@@ -72,6 +70,7 @@ class bullet:
         self.dir = dir
         self.range = range
         self.step= step
+    
 
 class ship_item:
     solid= False
@@ -93,7 +92,7 @@ class spaceship:
     color=LILA
     solid=True
     item_drop=True
-    def __init__(self, x,y,height,width,vel=3, health=50,shotspeed = 3,shotrange=100, shotdamage= 10, bullets=[], ori='right'):
+    def __init__(self,bullets, x,y,height,width,vel=3, health=50,shotspeed = 3,shotrange=100, shotdamage= 10, ori='right', score=0):
         self.body = pygame.Rect(x,y,height, width)
         self.weapon_cd = [0,40]
         self.vel=vel
@@ -103,11 +102,14 @@ class spaceship:
         self.shotdamage= shotdamage
         self.bullets= bullets
         self.oriantation=ori
+        self.score = score
     def add_bullet(self,bullet):
         self.bullets.append(bullet)
     def remove_bullet(self,bullet):
         self.bullets.remove(bullet)
-        
+    def change_score(self,n):
+        self.score = n
+
 def speed_up(obj):
     obj.vel+=1
 
@@ -195,7 +197,6 @@ def handle_doors(ship, doors):
 
 
 def bullet_handler(shooter,items,hit_by_player_bullets, stops_bullets):
-    global SCORE
     if shooter.weapon_cd[0] > 0:
         shooter.weapon_cd[0] -=1
     for bullet in shooter.bullets:
@@ -206,16 +207,8 @@ def bullet_handler(shooter,items,hit_by_player_bullets, stops_bullets):
             for bullet in shooter.bullets:
                 if bullet.body.colliderect(element.body):
                     element.health-=shooter.shotdamage
-                    print('hi')
-                    print(len(obj))
-                    SCORE+=10
-    
-    for obj in stops_bullets:
-        for element in obj:
-            for bullet in shooter.bullets:
-                if bullet.body.colliderect(element.body):
-                    shooter.remove_bullet(bullet)
-            
+                    shooter.change_score(shooter.score+10)
+        
     for obj in hit_by_player_bullets:
         for element in obj:
             if element.health<=0:
@@ -224,6 +217,13 @@ def bullet_handler(shooter,items,hit_by_player_bullets, stops_bullets):
                     if random.randint(0,100)>5:
                         items.append(ship_item(element.body.x,element.body.y,10,10,random_ship_buff([fire_rate,speed_up,shotspeed_up,health_up])))
 
+    for obj in stops_bullets:
+        for element in obj:
+            for bullet in shooter.bullets:
+                if bullet.body.colliderect(element.body):
+                    shooter.remove_bullet(bullet)
+            
+    
 
 def item_handler(ship,items):
     for item in items:
@@ -296,23 +296,24 @@ def ship_movement(ship, map_objects, key_pressed):
             ship.body.y+=ship.vel
         ship.oriantation = 'down'
 
-def shoot(ship,key_pressed):
-    if key_pressed[pygame.K_LEFT] and ship.weapon_cd[0]==0: #left
-        ship.add_bullet(bullet(ship.body.x,ship.body.y+ship.body.height//2,5,5,ship.shotspeed,[-1,0],ship.shotrange))
-        ship.weapon_cd[0]=ship.weapon_cd[1]
-        ship.oriantation='left'
-    if key_pressed[pygame.K_RIGHT] and ship.weapon_cd[0] ==0: #right
-        ship.add_bullet(bullet(ship.body.x,ship.body.y+ship.body.height//2,5,5,ship.shotspeed,[1,0],ship.shotrange))
-        ship.weapon_cd[0]=ship.weapon_cd[1]
-        ship.oriantation='right'
-    if key_pressed[pygame.K_UP] and ship.weapon_cd[0]==0: #up
-        ship.add_bullet(bullet(ship.body.x+ship.body.width//2,ship.body.y,5,5,ship.shotspeed,[0,-1],ship.shotrange))
-        ship.weapon_cd[0]=ship.weapon_cd[1]
-        ship.oriantation='up'
-    if key_pressed[pygame.K_DOWN] and ship.weapon_cd[0]==0: #down
-        ship.add_bullet(bullet(ship.body.x+ship.body.width//2,ship.body.y+ship.body.height,5,5,ship.shotspeed,[0,1],ship.shotrange))
-        ship.weapon_cd[0]=ship.weapon_cd[1]
-        ship.oriantation='down'
+def shoot(actor,key_pressed):
+    
+    if key_pressed[pygame.K_LEFT] and actor.weapon_cd[0]==0: #left
+        actor.add_bullet(bullet(actor.body.x,actor.body.y+actor.body.height//2,5,5,actor.shotspeed,[-1,0],actor.shotrange))
+        actor.weapon_cd[0]=actor.weapon_cd[1]
+        actor.oriantation='left'
+    if key_pressed[pygame.K_RIGHT] and actor.weapon_cd[0] ==0: #right
+        actor.add_bullet(bullet(actor.body.x,actor.body.y+actor.body.height//2,5,5,actor.shotspeed,[1,0],actor.shotrange))
+        actor.weapon_cd[0]=actor.weapon_cd[1]
+        actor.oriantation='right'
+    if key_pressed[pygame.K_UP] and actor.weapon_cd[0]==0: #up
+        actor.add_bullet(bullet(actor.body.x+actor.body.width//2,actor.body.y,5,5,actor.shotspeed,[0,-1],actor.shotrange))
+        actor.weapon_cd[0]=actor.weapon_cd[1]
+        actor.oriantation='up'
+    if key_pressed[pygame.K_DOWN] and actor.weapon_cd[0]==0: #down
+        actor.add_bullet(bullet(actor.body.x+actor.body.width//2,actor.body.y+actor.body.height,5,5,actor.shotspeed,[0,1],actor.shotrange))
+        actor.weapon_cd[0]=actor.weapon_cd[1]
+        actor.oriantation='down'
 
 #ENEMY CONTROL
 
@@ -348,7 +349,7 @@ def get_input(input):
             keys_pressed[pygame.K_RIGHT]=True
     return keys_pressed
 
-def enemy_handler(ship,enemies,map_objects):
+def enemy_handler(enemies,map_objects):
     for enemy in enemies:
         key_pressed= get_input([random.randint(0,7)])
         ship_movement(enemy, map_objects,key_pressed)
@@ -383,11 +384,11 @@ def central_draw(color,rect, adjust_x,adjust_y):
     obj.y+=adjust_y
     pygame.draw.rect(WIN,color,obj)
 
-def draw_window(ship,map_objects, SCORE):
+def draw_window(ship,map_objects):
     
     #Text written on the screen
     myfont= pygame.font.SysFont('Comic Sans MS', 40)
-    score = myfont.render('Score: '+str(SCORE),False,(255,255,255))
+    score = myfont.render('Score: '+str(ship.score),False,(255,255,255))
     health= myfont.render('Health: '+str(ship.health),False,(255,255,255))
     
     #Ship is in the center of the Screen, moving on an underlying grid
@@ -423,11 +424,9 @@ def draw_window(ship,map_objects, SCORE):
 
 def main():
     
-    global SCORE
-
     #OBJECTS IN THE GAME
-    ship = spaceship(450,200,SHIP_HEIGHT-2,SHIP_WIDTH-2)
-    enemy = spaceship(300,200,30,30)
+    ship = spaceship([],450,200,SHIP_HEIGHT-2,SHIP_WIDTH-2)
+    enemy = spaceship([],300,200,30,30)
     enemies=[enemy]
 
     ship_bullets=[]
@@ -471,7 +470,7 @@ def main():
         ship_movement(ship,map_objects, key_pressed)
              
         bullet_handler(ship,items, hit_by_player_bullets, stops_bullets) 
-
+        
         #ITEMS
         item_handler(ship,items)
         
@@ -480,12 +479,13 @@ def main():
         meteo_handler(meteorites, ship,walls)
 
         #ENEMIES
-        enemy_handler(ship,enemies,map_objects)
-        bullet_handler(enemy,items,[meteorites],[walls,meteorites,portals])
+        enemy_handler(enemies,map_objects)
+        bullet_handler(enemy,items,[meteorites,[ship]],[[ship],walls,meteorites,portals])
+        
         if ship.health <=0:
             end_screen()
         else:
-            draw_window(ship,map_objects+[enemies,enemy.bullets], SCORE)
+            draw_window(ship,map_objects+[enemies,enemy.bullets])
     pygame.quit()
 
 

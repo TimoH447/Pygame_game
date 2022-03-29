@@ -13,5 +13,3 @@ wall shiip colision übberarbeiten - je höher die geschwindigkeit des Schiffs, 
 wenn in einer for schleife ein element aus der iterierenden Schleife genommen wird, wird über dieses 
 Element dann trotdem noch in der for Schleife iteriert? nein
 
-Nach den ersten 300 Zeilen Code merkt man schnell, dass man git braucht beim Programmieren. Jede weitere 
-Änderung wird immer umfangreicher.
