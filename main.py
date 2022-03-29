@@ -37,6 +37,7 @@ BROWN = (139,69,20)
 YELLOW=(255,255,0)
 WHITE=(255,255,255)
 LILA=(130,0,130)
+RED=(255,0,0)
 
 SCREEN_COLOR = BLACK
 
@@ -62,16 +63,15 @@ class meteo:
         self.health= health
 
 class bullet:
-    color=YELLOW
     solid=False
-    def __init__(self, x,y,height, width, vel,dir,range,step=0):
+    def __init__(self, x,y,height, width, vel,dir,range,color=YELLOW,step=0):
         self.body=pygame.Rect(x,y,height,width)
         self.vel = vel
         self.dir = dir
         self.range = range
         self.step= step
+        self.color=color
     
-
 class ship_item:
     solid= False
     color=GREEN
@@ -79,7 +79,6 @@ class ship_item:
         self.body = pygame.Rect(x,y,height,width)
         self.effect = func
         
-
 class wall:
     solid = True
     color=WHITE
@@ -87,14 +86,14 @@ class wall:
         self.body=pygame.Rect(x,y,width,height)
         self.sprite =pygame.transform.scale(sprite,(width,height))
 
-
 class spaceship:
     color=LILA
     solid=True
     item_drop=True
-    def __init__(self,bullets, x,y,height,width,vel=3, health=50,shotspeed = 3,shotrange=100, shotdamage= 10, ori='right', score=0):
+    def __init__(self,bullets, x,y,height,width,bullet_color,vel=3, health=50,shotspeed = 3,shotrange=100, shotdamage= 10, ori='right', score=0):
         self.body = pygame.Rect(x,y,height, width)
         self.weapon_cd = [0,40]
+        self.bullet_color=bullet_color
         self.vel=vel
         self.health = health
         self.shotspeed = shotspeed
@@ -110,6 +109,7 @@ class spaceship:
     def change_score(self,n):
         self.score = n
 
+#ITEM FUNCTIONS
 def speed_up(obj):
     obj.vel+=1
 
@@ -195,7 +195,6 @@ def handle_doors(ship, doors):
         if ship.body.colliderect(door.rect):
             SCREEN_COLOR = BROWN
 
-
 def bullet_handler(shooter,items,hit_by_player_bullets, stops_bullets):
     if shooter.weapon_cd[0] > 0:
         shooter.weapon_cd[0] -=1
@@ -223,8 +222,6 @@ def bullet_handler(shooter,items,hit_by_player_bullets, stops_bullets):
                 if bullet.body.colliderect(element.body):
                     shooter.remove_bullet(bullet)
             
-    
-
 def item_handler(ship,items):
     for item in items:
         if ship.body.colliderect(item.body):
@@ -242,7 +239,6 @@ def meteo_handler(meteorites,ship,walls):
             for wall in walls:
                 if wall.body.colliderect(met.body):
                     meteorites.remove(met)
-        
         move_meteo(met)      
 
 #FUNCTIONS HANDLING USER INPUT AND COMPUTER CONTROLLED ENEMIES
@@ -297,21 +293,20 @@ def ship_movement(ship, map_objects, key_pressed):
         ship.oriantation = 'down'
 
 def shoot(actor,key_pressed):
-    
     if key_pressed[pygame.K_LEFT] and actor.weapon_cd[0]==0: #left
-        actor.add_bullet(bullet(actor.body.x,actor.body.y+actor.body.height//2,5,5,actor.shotspeed,[-1,0],actor.shotrange))
+        actor.add_bullet(bullet(actor.body.x,actor.body.y+actor.body.height//2,5,5,actor.shotspeed,[-1,0],actor.shotrange,actor.bullet_color))
         actor.weapon_cd[0]=actor.weapon_cd[1]
         actor.oriantation='left'
     if key_pressed[pygame.K_RIGHT] and actor.weapon_cd[0] ==0: #right
-        actor.add_bullet(bullet(actor.body.x,actor.body.y+actor.body.height//2,5,5,actor.shotspeed,[1,0],actor.shotrange))
+        actor.add_bullet(bullet(actor.body.x,actor.body.y+actor.body.height//2,5,5,actor.shotspeed,[1,0],actor.shotrange,actor.bullet_color))
         actor.weapon_cd[0]=actor.weapon_cd[1]
         actor.oriantation='right'
     if key_pressed[pygame.K_UP] and actor.weapon_cd[0]==0: #up
-        actor.add_bullet(bullet(actor.body.x+actor.body.width//2,actor.body.y,5,5,actor.shotspeed,[0,-1],actor.shotrange))
+        actor.add_bullet(bullet(actor.body.x+actor.body.width//2,actor.body.y,5,5,actor.shotspeed,[0,-1],actor.shotrange,actor.bullet_color))
         actor.weapon_cd[0]=actor.weapon_cd[1]
         actor.oriantation='up'
     if key_pressed[pygame.K_DOWN] and actor.weapon_cd[0]==0: #down
-        actor.add_bullet(bullet(actor.body.x+actor.body.width//2,actor.body.y+actor.body.height,5,5,actor.shotspeed,[0,1],actor.shotrange))
+        actor.add_bullet(bullet(actor.body.x+actor.body.width//2,actor.body.y+actor.body.height,5,5,actor.shotspeed,[0,1],actor.shotrange,actor.bullet_color))
         actor.weapon_cd[0]=actor.weapon_cd[1]
         actor.oriantation='down'
 
@@ -351,7 +346,7 @@ def get_input(input):
 
 def enemy_handler(enemies,map_objects):
     for enemy in enemies:
-        key_pressed= get_input([random.randint(0,7)])
+        key_pressed= get_input([random.randint(0,7)]) #generates random actions(moving,shooting)
         ship_movement(enemy, map_objects,key_pressed)
         shoot(enemy,key_pressed)
 
@@ -423,10 +418,10 @@ def draw_window(ship,map_objects):
 # MAIN ############################################################################
 
 def main():
-    
+
     #OBJECTS IN THE GAME
-    ship = spaceship([],450,200,SHIP_HEIGHT-2,SHIP_WIDTH-2)
-    enemy = spaceship([],300,200,30,30)
+    ship = spaceship([],450,200,SHIP_HEIGHT-2,SHIP_WIDTH-2,YELLOW)
+    enemy = spaceship([],300,200,30,30,RED)
     enemies=[enemy]
 
     ship_bullets=[]
