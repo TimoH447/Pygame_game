@@ -1,0 +1,17 @@
+ship_stats_caps
+item_buff_timers
+spawn_ast_outside of map
+
+Background image, Border
+meteoroid colision
+
+solids - ship_movement handler
+draw_objects - draw screen handler DONE
+
+wall shiip colision übberarbeiten - je höher die geschwindigkeit des Schiffs, desto weiter kann es in die Wand rein
+
+wenn in einer for schleife ein element aus der iterierenden Schleife genommen wird, wird über dieses 
+Element dann trotdem noch in der for Schleife iteriert? nein
+
+Nach den ersten 300 Zeilen Code merkt man schnell, dass man git braucht beim Programmieren. Jede weitere 
+Änderung wird immer umfangreicher.
