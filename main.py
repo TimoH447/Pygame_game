@@ -5,21 +5,32 @@ import random
 
 pygame.init()
 
+#INITIALIZING THE WINDOW IN WHICH THE GAME IS PLAYED
 WIDTH, HEIGHT = 900, 500
 WIN = pygame.display.set_mode((WIDTH,HEIGHT))
 pygame.display.set_caption("Platzhalter")
 
-SHIP_HEIGHT, SHIP_WIDTH = 19,19
+FPS = 90
 
+#MAP AND PLAYER PROPERTIES
+MAP_SIZE_X = 2000
+MAP_SIZE_Y = 2000
+BORDERSIZE = 100
+
+COMET_CAP = 10
+
+SHIP_HEIGHT, SHIP_WIDTH = 19, 19
+
+SCORE=0
+
+#IMAGES and SPRITES
 SHIP_IMG = pygame.image.load("Schiff.png")
 SHIP_IMG = pygame.transform.scale(SHIP_IMG, (SHIP_HEIGHT,SHIP_WIDTH))
 ASTEROID= pygame.image.load('asteroid2.jpg')
 ASTEROID=pygame.transform.scale(ASTEROID, (15,15))
 STONE=pygame.image.load('stone.png')
 
-FPS = 90
-SCORE=0
-
+#COLORS
 BLACK = (0,0,0)
 LIGHTGREY=(200,200,200)
 GREEN = (0,255,0)
@@ -31,15 +42,7 @@ LILA=(130,0,130)
 
 SCREEN_COLOR = BLACK
 
-MAP_SIZE_X = 2000
-MAP_SIZE_Y = 2000
-BORDERSIZE = 100
-
-COMET_CAP = 10
-
-MAP = 0
-
-
+#OBJECTS USED THE GAME
 class portal:
     color=LILA
     solid=True
@@ -47,6 +50,7 @@ class portal:
         self.FROM = FROM
         self.TO = TO
         self.body = pygame.Rect(x,y,height, width)
+
 class meteo:
     n=0
     item_drop = True
@@ -104,37 +108,20 @@ class spaceship:
     def remove_bullet(self,bullet):
         self.bullets.remove(bullet)
         
+def speed_up(obj):
+    obj.vel+=1
 
-def get_input(input):
-    keys_pressed={
-        pygame.K_a: False,
-        pygame.K_s: False,
-        pygame.K_d:False,
-        pygame.K_w:False,
-        pygame.K_UP:False,
-        pygame.K_DOWN:False,
-        pygame.K_RIGHT:False,
-        pygame.K_LEFT:False
-    }
-    for i in input:
-        if i==0:
-            keys_pressed[pygame.K_w]=True
-        if i==1:
-            keys_pressed[pygame.K_a]=True
-        if i==2:
-            keys_pressed[pygame.K_s]=True
-        if i==3:
-            keys_pressed[pygame.K_d]=True
-        if i==4:
-            keys_pressed[pygame.K_UP]=True
-        if i==5:
-            keys_pressed[pygame.K_DOWN]=True
-        if i==6:
-            keys_pressed[pygame.K_LEFT]=True
-        if i==7:
-            keys_pressed[pygame.K_RIGHT]=True
-    return keys_pressed
+def shotspeed_up(ship):
+    ship.shotspeed+=1
 
+def fire_rate(obj):
+    obj.weapon_cd[1]/=2
+
+def health_up(obj):
+    obj.health+=10
+
+def random_ship_buff(liste):
+    return liste[random.randint(0,len(liste)-1)]
 
 #returns True if 2 rectangles are in a certain proximity
 def distance_rect(obj1, obj2,d): 
@@ -156,86 +143,6 @@ def spawn_met(meteorites,ship, d):
             met = meteo(x,random.randint(0,400),10,10,random.randint(1,4),[random.randint(-5,5),random.randint(-5,5)])
             if not distance_rect(ship.body,met.body,d):
                 meteorites.append(met)
-
-def speed_up(obj):
-    obj.vel+=1
-
-def shotspeed_up(ship):
-    ship.shotspeed+=1
-
-def fire_rate(obj):
-    obj.weapon_cd[1]/=2
-
-def health_up(obj):
-    obj.health+=10
-
-def random_ship_buff(liste):
-    
-    return liste[random.randint(0,len(liste)-1)]
-
-def flip_to_ori(image, ori):
-    if ori=='right':
-        return image
-    if ori=='left':
-        return pygame.transform.flip(image,True,True)
-    if ori=='up':
-        return pygame.transform.rotate(image,90)
-    if ori=='down':
-        return pygame.transform.rotate(image,270)
-def central_draw(color,rect, adjust_x,adjust_y):
-    obj=rect.copy()
-    obj.x+=adjust_x
-    obj.y+=adjust_y
-    pygame.draw.rect(WIN,color,obj)
-
-def draw_window(ship,map_objects, SCORE):
-    
-    #Text written on the screen
-    myfont= pygame.font.SysFont('Comic Sans MS', 40)
-    score = myfont.render('Score: '+str(SCORE),False,(255,255,255))
-    health= myfont.render('Health: '+str(ship.health),False,(255,255,255))
-    
-    #Ship is in the center of the Screen, moving on an underlying grid
-    adjust_x = WIDTH//2-ship.body.x-ship.body.width
-    adjust_y = HEIGHT//2-ship.body.y-ship.body.height
-
-    WIN.fill(BLUE)
-    central_draw(SCREEN_COLOR, pygame.Rect(0,0,MAP_SIZE_X,MAP_SIZE_Y), adjust_x, adjust_y)
-    for obj in map_objects:
-        for element in obj:
-            try:
-                WIN.blit(element.sprite,(element.body.x+adjust_x,element.body.y+adjust_y))
-            except:
-                central_draw(element.color,element.body,adjust_x,adjust_y)
-
-    # for met in meteorites:
-    #     #pygame.draw.rect(WIN,BROWN,met.body)
-    #     central_draw(BROWN,met.body,adjust_x,adjust_y)
-    #     ASTEROID_scaled = pygame.transform.scale(ASTEROID,(15*met.body.width/10,15*met.body.height/10))
-    #     WIN.blit(ASTEROID_scaled,(met.body.x+adjust_x-3*met.body.width/10,met.body.y+adjust_y-3*met.body.height/10))
-    
-    WIN.blit(flip_to_ori(SHIP_IMG, ship.oriantation), (ship.body.x+adjust_x,ship.body.y+adjust_y))
-
-    central_draw(LIGHTGREY,pygame.Rect(-WIDTH,-HEIGHT,2*WIDTH+MAP_SIZE_X,HEIGHT),adjust_x,adjust_y)
-    central_draw(LIGHTGREY,pygame.Rect(-WIDTH,-HEIGHT,WIDTH,2*HEIGHT+MAP_SIZE_Y),adjust_x,adjust_y)
-
-    WIN.blit(health,(600,10))
-    WIN.blit(score,(50,10))
-
-    pygame.display.update()
-
-def end_screen():
-    WIN.fill(SCREEN_COLOR)
-    myfont= pygame.font.SysFont('Comic Sans MS', 40)
-    end= myfont.render('GAME OVER',False,WHITE)
-    WIN.blit(end,(300,220))
-    pygame.display.update()
-
-def handle_doors(ship, doors):
-    global SCREEN_COLOR
-    for door in doors:
-        if ship.body.colliderect(door.rect):
-            SCREEN_COLOR = BROWN
 
 def move_meteo(met):
     x=met.dir[0]
@@ -277,6 +184,14 @@ def move_meteo(met):
                     met.n=0
         met.body.x += temp_x
         met.body.y += temp_y
+
+#HANDLING THE INTERACTION OF OBJECTS IN THE GAME
+
+def handle_doors(ship, doors):
+    global SCREEN_COLOR
+    for door in doors:
+        if ship.body.colliderect(door.rect):
+            SCREEN_COLOR = BROWN
 
 
 def bullet_handler(shooter,items,hit_by_player_bullets, stops_bullets):
@@ -329,6 +244,8 @@ def meteo_handler(meteorites,ship,walls):
                     meteorites.remove(met)
         
         move_meteo(met)      
+
+#FUNCTIONS HANDLING USER INPUT AND COMPUTER CONTROLLED ENEMIES
 
 def ship_movement(ship, map_objects, key_pressed):
     #funktion bewegt die Position des Schiffs bezüglich der Eingabe
@@ -397,6 +314,39 @@ def shoot(ship,key_pressed):
         ship.weapon_cd[0]=ship.weapon_cd[1]
         ship.oriantation='down'
 
+#ENEMY CONTROL
+
+#Turn numbers into keyboard input, so that the computer can use the same functions
+#as the player
+def get_input(input):
+    keys_pressed={
+        pygame.K_a: False,
+        pygame.K_s: False,
+        pygame.K_d:False,
+        pygame.K_w:False,
+        pygame.K_UP:False,
+        pygame.K_DOWN:False,
+        pygame.K_RIGHT:False,
+        pygame.K_LEFT:False
+    }
+    for i in input:
+        if i==0:
+            keys_pressed[pygame.K_w]=True
+        if i==1:
+            keys_pressed[pygame.K_a]=True
+        if i==2:
+            keys_pressed[pygame.K_s]=True
+        if i==3:
+            keys_pressed[pygame.K_d]=True
+        if i==4:
+            keys_pressed[pygame.K_UP]=True
+        if i==5:
+            keys_pressed[pygame.K_DOWN]=True
+        if i==6:
+            keys_pressed[pygame.K_LEFT]=True
+        if i==7:
+            keys_pressed[pygame.K_RIGHT]=True
+    return keys_pressed
 
 def enemy_handler(ship,enemies,map_objects):
     for enemy in enemies:
@@ -404,8 +354,78 @@ def enemy_handler(ship,enemies,map_objects):
         ship_movement(enemy, map_objects,key_pressed)
         shoot(enemy,key_pressed)
 
+#SZENES OF THE GAME
+
+#not really an endscreen yet since the game still continues just without being
+#seen by the player -> find a better solution
+def end_screen(): 
+    WIN.fill(SCREEN_COLOR)
+    myfont= pygame.font.SysFont('Comic Sans MS', 40)
+    end= myfont.render('GAME OVER',False,WHITE)
+    WIN.blit(end,(300,220))
+    pygame.display.update()
+
+#VISUALISING THE GAME
+
+def flip_to_ori(image, ori):
+    if ori=='right':
+        return image
+    if ori=='left':
+        return pygame.transform.flip(image,True,True)
+    if ori=='up':
+        return pygame.transform.rotate(image,90)
+    if ori=='down':
+        return pygame.transform.rotate(image,270)
+
+def central_draw(color,rect, adjust_x,adjust_y):
+    obj=rect.copy()
+    obj.x+=adjust_x
+    obj.y+=adjust_y
+    pygame.draw.rect(WIN,color,obj)
+
+def draw_window(ship,map_objects, SCORE):
+    
+    #Text written on the screen
+    myfont= pygame.font.SysFont('Comic Sans MS', 40)
+    score = myfont.render('Score: '+str(SCORE),False,(255,255,255))
+    health= myfont.render('Health: '+str(ship.health),False,(255,255,255))
+    
+    #Ship is in the center of the Screen, moving on an underlying grid
+    adjust_x = WIDTH//2-ship.body.x-ship.body.width
+    adjust_y = HEIGHT//2-ship.body.y-ship.body.height
+
+    WIN.fill(BLUE)
+    central_draw(SCREEN_COLOR, pygame.Rect(0,0,MAP_SIZE_X,MAP_SIZE_Y), adjust_x, adjust_y)
+    for obj in map_objects:
+        for element in obj:
+            try:
+                WIN.blit(element.sprite,(element.body.x+adjust_x,element.body.y+adjust_y))
+            except:
+                central_draw(element.color,element.body,adjust_x,adjust_y)
+
+    # for met in meteorites:
+    #     #pygame.draw.rect(WIN,BROWN,met.body)
+    #     central_draw(BROWN,met.body,adjust_x,adjust_y)
+    #     ASTEROID_scaled = pygame.transform.scale(ASTEROID,(15*met.body.width/10,15*met.body.height/10))
+    #     WIN.blit(ASTEROID_scaled,(met.body.x+adjust_x-3*met.body.width/10,met.body.y+adjust_y-3*met.body.height/10))
+    
+    WIN.blit(flip_to_ori(SHIP_IMG, ship.oriantation), (ship.body.x+adjust_x,ship.body.y+adjust_y))
+
+    central_draw(LIGHTGREY,pygame.Rect(-WIDTH,-HEIGHT,2*WIDTH+MAP_SIZE_X,HEIGHT),adjust_x,adjust_y)
+    central_draw(LIGHTGREY,pygame.Rect(-WIDTH,-HEIGHT,WIDTH,2*HEIGHT+MAP_SIZE_Y),adjust_x,adjust_y)
+
+    WIN.blit(health,(600,10))
+    WIN.blit(score,(50,10))
+
+    pygame.display.update()
+
+# MAIN ############################################################################
+
 def main():
+    
     global SCORE
+
+    #OBJECTS IN THE GAME
     ship = spaceship(450,200,SHIP_HEIGHT-2,SHIP_WIDTH-2)
     enemy = spaceship(300,200,30,30)
     enemies=[enemy]
@@ -431,6 +451,7 @@ def main():
 
     map_objects=[ship.bullets,meteorites,items,walls,portals]
 
+    #GAME LOOP
     clock=pygame.time.Clock()
     run = True
     while run: 
