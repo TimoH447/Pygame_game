@@ -42,12 +42,12 @@ RED=(255,0,0)
 SCREEN_COLOR = BLACK
 
 #OBJECTS USED THE GAME
-class portal:
+class Portal:
     color=LILA
-    solid=True
-    def __init__(self,FROM,TO, x,y, height, width):
-        self.FROM = FROM
-        self.TO = TO
+    solid=False
+    def __init__(self,x_change,y_change, x,y, height, width):
+        self.x_change = x_change
+        self.y_change = y_change
         self.body = pygame.Rect(x,y,height, width)
 
 class meteo:
@@ -89,23 +89,46 @@ class wall:
 class spaceship:
     color=LILA
     solid=True
-    item_drop=True
-    def __init__(self,bullets, x,y,height,width,bullet_color,vel=3, health=50,shotspeed = 3,shotrange=100, shotdamage= 10, ori='right', score=0):
+    def __init__(self,bullets, x,y,height,width,bullet_color,item_drop=False,vel=3, health=50,shotspeed = 3,shotrange=100, shotdamage= 10, ported= False,ori='right', score=0):
         self.body = pygame.Rect(x,y,height, width)
         self.weapon_cd = [0,40]
         self.bullet_color=bullet_color
+        self.item_drop=item_drop
         self.vel=vel
         self.health = health
         self.shotspeed = shotspeed
         self.shotrange= shotrange
         self.shotdamage= shotdamage
         self.bullets= bullets
+        self.ported=ported
         self.oriantation=ori
         self.score = score
+        self.temp=[]
+
+    def tick(self):
+        for t in self.temp:
+            t[0]-=1
+            if t[0]<=0:
+                t[1](t[2])
+                self.temp.remove(t)
+
+    def timer_change(self,attr_change,old_value,new_value,time):
+        self.temp.append([time,attr_change,old_value])
+        attr_change(new_value)
+
+    def change_ported(self,value):
+        self.ported=value
+
     def add_bullet(self,bullet):
         self.bullets.append(bullet)
     def remove_bullet(self,bullet):
         self.bullets.remove(bullet)
+    def portation(self,x,y):
+        self.body.x+=x
+        self.body.y+=y
+        self.timer_change(self.change_ported,self.ported,True,200)
+        self.ported=True
+
     def change_score(self,n):
         self.score = n
 
@@ -189,11 +212,15 @@ def move_meteo(met):
 
 #HANDLING THE INTERACTION OF OBJECTS IN THE GAME
 
-def handle_doors(ship, doors):
-    global SCREEN_COLOR
-    for door in doors:
-        if ship.body.colliderect(door.rect):
-            SCREEN_COLOR = BROWN
+def portal_handler(ship, portals):
+    for portal in portals:
+        if ship.body.colliderect(portal.body) and not ship.ported:
+            ship.portation(portal.x_change,portal.y_change)
+            print(ship.ported, 'jo', portal.body.x)
+        for bullet in ship.bullets:
+            if bullet.body.colliderect(portal.body):
+                bullet.body.x+=portal.x_change
+                bullet.body.y+=portal.y_change
 
 def bullet_handler(shooter,items,hit_by_player_bullets, stops_bullets):
     if shooter.weapon_cd[0] > 0:
@@ -208,6 +235,12 @@ def bullet_handler(shooter,items,hit_by_player_bullets, stops_bullets):
                     element.health-=shooter.shotdamage
                     shooter.change_score(shooter.score+10)
         
+    for obj in stops_bullets:
+        for element in obj:
+            for bullet in shooter.bullets:
+                if bullet.body.colliderect(element.body):
+                    shooter.remove_bullet(bullet)
+
     for obj in hit_by_player_bullets:
         for element in obj:
             if element.health<=0:
@@ -215,13 +248,7 @@ def bullet_handler(shooter,items,hit_by_player_bullets, stops_bullets):
                 if element.item_drop==True:
                     if random.randint(0,100)>5:
                         items.append(ship_item(element.body.x,element.body.y,10,10,random_ship_buff([fire_rate,speed_up,shotspeed_up,health_up])))
-
-    for obj in stops_bullets:
-        for element in obj:
-            for bullet in shooter.bullets:
-                if bullet.body.colliderect(element.body):
-                    shooter.remove_bullet(bullet)
-            
+        
 def item_handler(ship,items):
     for item in items:
         if ship.body.colliderect(item.body):
@@ -346,9 +373,10 @@ def get_input(input):
 
 def enemy_handler(enemies,map_objects):
     for enemy in enemies:
-        key_pressed= get_input([random.randint(0,7)]) #generates random actions(moving,shooting)
+        key_pressed= get_input([random.randint(4,7)]) #generates random actions(moving,shooting)
         ship_movement(enemy, map_objects,key_pressed)
         shoot(enemy,key_pressed)
+        
 
 #SZENES OF THE GAME
 
@@ -418,27 +446,24 @@ def draw_window(ship,map_objects):
 # MAIN ############################################################################
 
 def main():
-
     #OBJECTS IN THE GAME
     ship = spaceship([],450,200,SHIP_HEIGHT-2,SHIP_WIDTH-2,YELLOW)
-    enemy = spaceship([],300,200,30,30,RED)
-    enemies=[enemy]
+    enemy = spaceship([],300,200,30,30,RED,True)
+    enemy2 = spaceship([],800,800,30,30,RED,True)
+    enemies=[enemy,enemy2]
 
-    ship_bullets=[]
     meteorites=[]
     met = meteo(300,300,10,10,1,[0,0])
-    met2 = meteo(300,300,10,10,1,[0,0])
     meteorites.append(met)
-    meteorites.append(met2)
     
     items=[]
     items.append(ship_item(50,50,10,10,fire_rate))
-    items.append(ship_item(80,50,10,10,health_up))
 
     walls=[]
     walls.append(wall(50,50,150,150))
     portals = []
-    portals.append(portal(0,1,200,200,10,50))
+    portals.append(Portal(100,100,200,200,10,50))
+    portals.append(Portal(-100,-100,300,300,10,50))
 
     hit_by_player_bullets=[meteorites,enemies]
     stops_bullets=[meteorites,walls,enemies]
@@ -459,10 +484,12 @@ def main():
         #1.wenn schießen nicht auf cooldown ist, wird ein Schuss hinzugefügt mit der richtung in die geschossen wird
         #2.und anschließend wird der Cooldown hochgesetzt
         #3.orentation des ships soll abhängig der Schießrichtung sein
-        
         shoot(ship,key_pressed)
+        
         ##MOVEMENT############
         ship_movement(ship,map_objects, key_pressed)
+
+        portal_handler(ship,portals)
              
         bullet_handler(ship,items, hit_by_player_bullets, stops_bullets) 
         
@@ -475,12 +502,15 @@ def main():
 
         #ENEMIES
         enemy_handler(enemies,map_objects)
-        bullet_handler(enemy,items,[meteorites,[ship]],[[ship],walls,meteorites,portals])
+        for e in enemies:
+            bullet_handler(e,items,[meteorites,[ship]],[[ship],walls,meteorites,portals])
         
+        ship.tick()
+
         if ship.health <=0:
             end_screen()
         else:
-            draw_window(ship,map_objects+[enemies,enemy.bullets])
+            draw_window(ship,map_objects+[enemies,enemy.bullets,enemy2.bullets])
     pygame.quit()
 
 
