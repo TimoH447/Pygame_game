@@ -1,5 +1,3 @@
-from pickle import FALSE, TRUE
-from turtle import circle
 import pygame
 import random
 
@@ -42,36 +40,14 @@ RED=(255,0,0)
 SCREEN_COLOR = BLACK
 
 #OBJECTS USED THE GAME
-class Portal:
-    color=LILA
-    solid=False
-    def __init__(self,x_change,y_change, x,y, height, width):
-        self.x_change = x_change
-        self.y_change = y_change
-        self.body = pygame.Rect(x,y,height, width)
-
-class meteo:
-    n=0
-    item_drop = True
-    solid=False
-    color=BROWN
-    sprite= ASTEROID
-    def __init__(self,x,y,height,width,vel=5,dir=[1,0], health= 1):
-        self.body = pygame.Rect(x,y,height, width)
+class Moveable:
+    def __init__(self,x,y,height,width, vel=4):
+        self.body = pygame.Rect(x,y,height,width)
         self.vel = vel
-        self.dir = dir
-        self.health= health
 
-class bullet:
-    solid=False
-    def __init__(self, x,y,height, width, vel,dir,range,color=YELLOW,step=0):
-        self.body=pygame.Rect(x,y,height,width)
-        self.vel = vel
-        self.dir = dir
-        self.range = range
-        self.step= step
-        self.color=color
-        self.ported=False
+class Portable:
+    def __init__(self,ported = False):
+        self.ported = ported
         self.temp=[]
     def change_ported(self,value):
         self.ported=value
@@ -84,6 +60,54 @@ class bullet:
     def timer_change(self,attr_change,old_value,new_value,time):
         self.temp.append([time,attr_change,old_value])
         attr_change(new_value)
+
+class Weapon:
+    def __init__(self,cd,shotdamage,shotrange,shotspeed):
+        self.cd =cd
+        self.shotdamage=shotdamage
+        self.shotrange=shotrange
+        self.shotspeed=shotspeed
+
+class Weaponized:
+    def __init__(self,bullet_list, bullet_color, weapon):
+        self.bullet_list = bullet_list
+        self.bullet_color = bullet_color
+        self.weapon = weapon
+    def add_bullet(self,bullet):
+        self.bullet_list.append(bullet)
+    def remove_bullet(self,bullet):
+        self.bullet_list.remove(bullet)
+
+class Portal:
+    color=LILA
+    solid=False
+    def __init__(self,x_change,y_change, x,y, height, width):
+        self.x_change = x_change
+        self.y_change = y_change
+        self.body = pygame.Rect(x,y,height, width)
+
+class Astroid:
+    n=0
+    item_drop = True
+    solid=False
+    color=BROWN
+    sprite= ASTEROID
+    def __init__(self,x,y,height,width,vel=5,dir=[1,0], health= 1):
+        self.body = pygame.Rect(x,y,height, width)
+        self.vel = vel
+        self.dir = dir
+        self.health= health
+
+class Bullet(Moveable,Portable):
+    solid=False
+    def __init__(self, x,y,height, width, vel,dir,range,color=YELLOW,step=0):
+        Moveable.__init__(self,x,y,height,width,vel)
+        Portable.__init__(self,False)
+        self.dir = dir
+        self.range = range
+        self.step= step
+        self.color=color
+        
     
 class ship_item:
     solid= False
@@ -99,44 +123,18 @@ class wall:
         self.body=pygame.Rect(x,y,width,height)
         self.sprite =pygame.transform.scale(sprite,(width,height))
 
-class spaceship:
+class spaceship(Portable,Weaponized):
     color=LILA
     solid=True
-    def __init__(self,bullets, x,y,height,width,bullet_color,item_drop=False,vel=3, health=50,shotspeed = 3,shotrange=100, shotdamage= 10, ported= False,ori='right', score=0):
+    def __init__(self,bullet_list, x,y,height,width,bullet_color,item_drop=False,vel=3, health=50,shotspeed = 3,shotrange=100, shotdamage= 10,ori='right', score=0):
+        Portable.__init__(self,False)
+        Weaponized.__init__(self,bullet_list,bullet_color,Weapon([0,40],shotdamage,shotrange,shotspeed))
         self.body = pygame.Rect(x,y,height, width)
-        self.weapon_cd = [0,40]
-        self.bullet_color=bullet_color
         self.item_drop=item_drop
         self.vel=vel
         self.health = health
-        self.shotspeed = shotspeed
-        self.shotrange= shotrange
-        self.shotdamage= shotdamage
-        self.bullets= bullets
-        self.ported=ported
         self.oriantation=ori
         self.score = score
-        self.temp=[]
-
-    def tick(self):
-        for t in self.temp:
-            t[0]-=1
-            if t[0]<=0:
-                t[1](t[2])
-                self.temp.remove(t)
-
-    def timer_change(self,attr_change,old_value,new_value,time):
-        self.temp.append([time,attr_change,old_value])
-        attr_change(new_value)
-
-    def change_ported(self,value):
-        self.ported=value
-
-    def add_bullet(self,bullet):
-        self.bullets.append(bullet)
-    def remove_bullet(self,bullet):
-        self.bullets.remove(bullet)
-
     def change_score(self,n):
         self.score = n
 
@@ -169,11 +167,11 @@ def spawn_met(meteorites,ship, d):
         x=random_ship_buff([random.randint(-BORDERSIZE,0),random.randint(MAP_SIZE_X,MAP_SIZE_X+BORDERSIZE)])
         
         if random.randint(0,50)>49:
-            met = meteo(x,random.randint(0,400),50,50,1,[random.randint(-5,5),random.randint(-5,5)],health=40)
+            met = Astroid(x,random.randint(0,400),50,50,1,[random.randint(-5,5),random.randint(-5,5)],health=40)
             if not distance_rect(ship.body,met.body,d):
                 meteorites.append(met)
         else:
-            met = meteo(x,random.randint(0,400),10,10,random.randint(1,4),[random.randint(-5,5),random.randint(-5,5)])
+            met = Astroid(x,random.randint(0,400),10,10,random.randint(1,4),[random.randint(-5,5),random.randint(-5,5)])
             if not distance_rect(ship.body,met.body,d):
                 meteorites.append(met)
 
@@ -230,26 +228,26 @@ def portal_handler(ship, portals):
     for portal in portals:
         if ship.body.colliderect(portal.body) and not ship.ported:
             portation(ship,portal.x_change,portal.y_change)
-        for bullet in ship.bullets:
+        for bullet in ship.bullet_list:
             if bullet.body.colliderect(portal.body) and not bullet.ported:
                 portation(bullet,portal.x_change,portal.y_change)
 
 def bullet_handler(shooter,items,hit_by_player_bullets, stops_bullets):
-    if shooter.weapon_cd[0] > 0:
-        shooter.weapon_cd[0] -=1
-    for bullet in shooter.bullets:
+    if shooter.weapon.cd[0] > 0:
+        shooter.weapon.cd[0] -=1
+    for bullet in shooter.bullet_list:
             move_meteo(bullet)
             bullet.step+=1
     for obj in hit_by_player_bullets:
         for element in obj:
-            for bullet in shooter.bullets:
+            for bullet in shooter.bullet_list:
                 if bullet.body.colliderect(element.body):
-                    element.health-=shooter.shotdamage
+                    element.health-=shooter.weapon.shotdamage
                     shooter.change_score(shooter.score+10)
         
     for obj in stops_bullets:
         for element in obj:
-            for bullet in shooter.bullets:
+            for bullet in shooter.bullet_list:
                 if bullet.body.colliderect(element.body):
                     shooter.remove_bullet(bullet)
 
@@ -332,21 +330,21 @@ def ship_movement(ship, map_objects, key_pressed):
         ship.oriantation = 'down'
 
 def shoot(actor,key_pressed):
-    if key_pressed[pygame.K_LEFT] and actor.weapon_cd[0]==0: #left
-        actor.add_bullet(bullet(actor.body.x,actor.body.y+actor.body.height//2,5,5,actor.shotspeed,[-1,0],actor.shotrange,actor.bullet_color))
-        actor.weapon_cd[0]=actor.weapon_cd[1]
+    if key_pressed[pygame.K_LEFT] and actor.weapon.cd[0]==0: #left
+        actor.add_bullet(Bullet(actor.body.x,actor.body.y+actor.body.height//2,5,5,actor.weapon.shotspeed,[-1,0],actor.weapon.shotrange,actor.bullet_color))
+        actor.weapon.cd[0]=actor.weapon.cd[1]
         actor.oriantation='left'
-    if key_pressed[pygame.K_RIGHT] and actor.weapon_cd[0] ==0: #right
-        actor.add_bullet(bullet(actor.body.x,actor.body.y+actor.body.height//2,5,5,actor.shotspeed,[1,0],actor.shotrange,actor.bullet_color))
-        actor.weapon_cd[0]=actor.weapon_cd[1]
+    if key_pressed[pygame.K_RIGHT] and actor.weapon.cd[0] ==0: #right
+        actor.add_bullet(Bullet(actor.body.x,actor.body.y+actor.body.height//2,5,5,actor.weapon.shotspeed,[1,0],actor.weapon.shotrange,actor.bullet_color))
+        actor.weapon.cd[0]=actor.weapon.cd[1]
         actor.oriantation='right'
-    if key_pressed[pygame.K_UP] and actor.weapon_cd[0]==0: #up
-        actor.add_bullet(bullet(actor.body.x+actor.body.width//2,actor.body.y,5,5,actor.shotspeed,[0,-1],actor.shotrange,actor.bullet_color))
-        actor.weapon_cd[0]=actor.weapon_cd[1]
+    if key_pressed[pygame.K_UP] and actor.weapon.cd[0]==0: #up
+        actor.add_bullet(Bullet(actor.body.x+actor.body.width//2,actor.body.y,5,5,actor.weapon.shotspeed,[0,-1],actor.weapon.shotrange,actor.bullet_color))
+        actor.weapon.cd[0]=actor.weapon.cd[1]
         actor.oriantation='up'
-    if key_pressed[pygame.K_DOWN] and actor.weapon_cd[0]==0: #down
-        actor.add_bullet(bullet(actor.body.x+actor.body.width//2,actor.body.y+actor.body.height,5,5,actor.shotspeed,[0,1],actor.shotrange,actor.bullet_color))
-        actor.weapon_cd[0]=actor.weapon_cd[1]
+    if key_pressed[pygame.K_DOWN] and actor.weapon.cd[0]==0: #down
+        actor.add_bullet(Bullet(actor.body.x+actor.body.width//2,actor.body.y+actor.body.height,5,5,actor.weapon.shotspeed,[0,1],actor.weapon.shotrange,actor.bullet_color))
+        actor.weapon.cd[0]=actor.weapon.cd[1]
         actor.oriantation='down'
 
 #ENEMY CONTROL
@@ -465,11 +463,8 @@ def main():
     enemies=[enemy,enemy2]
 
     meteorites=[]
-    met = meteo(300,300,10,10,1,[0,0])
-    meteorites.append(met)
     
     items=[]
-    items.append(ship_item(50,50,10,10,fire_rate))
 
     walls=[]
     walls.append(wall(50,50,150,150))
@@ -480,7 +475,7 @@ def main():
     hit_by_player_bullets=[meteorites,enemies]
     stops_bullets=[meteorites,walls,enemies]
 
-    map_objects=[ship.bullets,meteorites,items,walls,portals]
+    map_objects=[ship.bullet_list,meteorites,items,walls,portals]
 
     #GAME LOOP
     clock=pygame.time.Clock()
@@ -518,13 +513,13 @@ def main():
             bullet_handler(e,items,[meteorites,[ship]],[[ship],walls,meteorites,portals])
         
         ship.tick()
-        for bullet in ship.bullets:
+        for bullet in ship.bullet_list:
             bullet.tick()
 
         if ship.health <=0:
             end_screen()
         else:
-            draw_window(ship,map_objects+[enemies,enemy.bullets,enemy2.bullets])
+            draw_window(ship,map_objects+[enemies,enemy.bullet_list,enemy2.bullet_list])
     pygame.quit()
 
 
