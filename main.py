@@ -71,6 +71,19 @@ class bullet:
         self.range = range
         self.step= step
         self.color=color
+        self.ported=False
+        self.temp=[]
+    def change_ported(self,value):
+        self.ported=value
+    def tick(self):
+        for t in self.temp:
+            t[0]-=1
+            if t[0]<=0:
+                t[1](t[2])
+                self.temp.remove(t)
+    def timer_change(self,attr_change,old_value,new_value,time):
+        self.temp.append([time,attr_change,old_value])
+        attr_change(new_value)
     
 class ship_item:
     solid= False
@@ -123,11 +136,6 @@ class spaceship:
         self.bullets.append(bullet)
     def remove_bullet(self,bullet):
         self.bullets.remove(bullet)
-    def portation(self,x,y):
-        self.body.x+=x
-        self.body.y+=y
-        self.timer_change(self.change_ported,self.ported,True,200)
-        self.ported=True
 
     def change_score(self,n):
         self.score = n
@@ -210,17 +218,21 @@ def move_meteo(met):
         met.body.x += temp_x
         met.body.y += temp_y
 
+def portation(obj,x,y):
+    obj.body.x+=x
+    obj.body.y+=y
+    obj.timer_change(obj.change_ported,obj.ported,True,120)
+    obj.ported=True
+    
 #HANDLING THE INTERACTION OF OBJECTS IN THE GAME
 
 def portal_handler(ship, portals):
     for portal in portals:
         if ship.body.colliderect(portal.body) and not ship.ported:
-            ship.portation(portal.x_change,portal.y_change)
-            print(ship.ported, 'jo', portal.body.x)
+            portation(ship,portal.x_change,portal.y_change)
         for bullet in ship.bullets:
-            if bullet.body.colliderect(portal.body):
-                bullet.body.x+=portal.x_change
-                bullet.body.y+=portal.y_change
+            if bullet.body.colliderect(portal.body) and not bullet.ported:
+                portation(bullet,portal.x_change,portal.y_change)
 
 def bullet_handler(shooter,items,hit_by_player_bullets, stops_bullets):
     if shooter.weapon_cd[0] > 0:
@@ -506,6 +518,8 @@ def main():
             bullet_handler(e,items,[meteorites,[ship]],[[ship],walls,meteorites,portals])
         
         ship.tick()
+        for bullet in ship.bullets:
+            bullet.tick()
 
         if ship.health <=0:
             end_screen()
