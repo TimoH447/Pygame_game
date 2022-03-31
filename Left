@@ -13,7 +13,19 @@ wall shiip colision übberarbeiten - je höher die geschwindigkeit des Schiffs, 
 wenn in einer for schleife ein element aus der iterierenden Schleife genommen wird, wird über dieses 
 Element dann trotdem noch in der for Schleife iteriert? nein
 
-Next: DONE
-Bullet handler is bugged, it first checks if objects are hit by the bullets and removes
+Next: 
+-Bullet handler is bugged, it first checks if objects are hit by the bullets and removes
 the objects then. Then it checks if the bullet has hit anything but because we already
-removed the object which is hit, the bullet doesnt get removed.
+removed the object which is hit, the bullet doesnt get removed. DONE
+
+-Start scene, and proper end scene
+
+Buglist:
+Bullets have unlimited range.
+When an enemy dies, it bullets stay in the last place they where forever.
+
+Not that Important things:
+-if something flies on one side in the portal, it should come out at the oposite site of the other portal
+
+Very unimportant:
+Animations for example when bullet hit something or astroids collide

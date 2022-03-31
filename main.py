@@ -25,6 +25,9 @@ SHIP_IMG = pygame.transform.scale(SHIP_IMG, (SHIP_HEIGHT,SHIP_WIDTH))
 ASTEROID= pygame.image.load('asteroid2.jpg')
 ASTEROID=pygame.transform.scale(ASTEROID, (15,15))
 STONE=pygame.image.load('stone.png')
+BACKGROUND = pygame.image.load('background2.png')
+BACKGROUND=pygame.transform.scale(BACKGROUND, (2000,2000))
+PORTAL_FLUID = pygame.image.load('portal_fluid.png')
 
 #COLORS
 BLACK = (0,0,0)
@@ -41,9 +44,49 @@ SCREEN_COLOR = BLACK
 
 #OBJECTS USED THE GAME
 class Moveable:
-    def __init__(self,x,y,height,width, vel=4):
+    def __init__(self,x,y,height,width,dir, vel=4):
         self.body = pygame.Rect(x,y,height,width)
         self.vel = vel
+        self.dir = dir
+    def move_obj(self):
+        x=self.dir[0]
+        y=self.dir[1]
+        temp_x=0
+        temp_y=0
+        if x==0 and y!=0:
+            self.body.y += y//abs(y)*self.vel
+        elif y==0 and x!=0:
+            self.body.x +=x//abs(x)*self.vel
+        elif x!=0 and y!=0:
+            #wir aproximieren vom Richtungsvektor eine Rate, wie viele pixel nach x bevor ein pixel nach y bewegt wird
+            #bzw. andersherum, je nachdem in welche Richtung am stärksten ist
+            if abs(x)>abs(y):
+                a=x
+                n=1//(abs(y)/abs(x)) #anzahl der schritte nach x pro ein step in Richtung y
+            else:
+                a=y
+                n=1//(abs(x)/abs(y))
+            #Damit wenn mehr als ein pixel pro frame bewegt, es nicht zu schlangenlinien kommt,
+            #werden einfach die nächsten bewegungen abgespeichert der Reihe nach so häufig wie
+            #pixel pro frame bewegt werden und dann anschließend der position in x und y zugefügt
+            #anstat immer so und so viele pixel pro frame nur in eine Richtung
+            for i in range(self.vel):
+                if a==x:
+                    if self.n<=n:
+                        temp_x += x//abs(x)
+                        self.n +=1
+                    else:
+                        temp_y += y//abs(y)
+                        self.n=0
+                elif a==y:
+                    if self.n<=n:
+                        temp_y += y//abs(y)
+                        self.n +=1
+                    else:
+                        temp_x += x//abs(x)
+                        self.n=0
+            self.body.x += temp_x
+            self.body.y += temp_y
 
 class Portable:
     def __init__(self,ported = False):
@@ -85,25 +128,24 @@ class Portal:
         self.x_change = x_change
         self.y_change = y_change
         self.body = pygame.Rect(x,y,height, width)
+        self.sprite = pygame.transform.scale(PORTAL_FLUID,(height, width))
 
-class Astroid:
+class Astroid(Moveable,Portable):
     n=0
     item_drop = True
     solid=False
     color=BROWN
     sprite= ASTEROID
     def __init__(self,x,y,height,width,vel=5,dir=[1,0], health= 1):
-        self.body = pygame.Rect(x,y,height, width)
-        self.vel = vel
-        self.dir = dir
+        Moveable.__init__(self,x,y,height,width,dir,vel)
+        Portable.__init__(self,False)
         self.health= health
 
 class Bullet(Moveable,Portable):
     solid=False
     def __init__(self, x,y,height, width, vel,dir,range,color=YELLOW,step=0):
-        Moveable.__init__(self,x,y,height,width,vel)
+        Moveable.__init__(self,x,y,height,width,dir,vel)
         Portable.__init__(self,False)
-        self.dir = dir
         self.range = range
         self.step= step
         self.color=color
@@ -116,7 +158,7 @@ class ship_item:
         self.body = pygame.Rect(x,y,height,width)
         self.effect = func
         
-class wall:
+class Wall:
     solid = True
     color=WHITE
     def __init__(self,x,y,width,height,sprite=STONE):
@@ -143,10 +185,10 @@ def speed_up(obj):
     obj.vel+=1
 
 def shotspeed_up(ship):
-    ship.shotspeed+=1
+    ship.weapon.shotspeed+=1
 
 def fire_rate(obj):
-    obj.weapon_cd[1]/=2
+    obj.weapon.cd[1]/=2
 
 def health_up(obj):
     obj.health+=10
@@ -175,46 +217,15 @@ def spawn_met(meteorites,ship, d):
             if not distance_rect(ship.body,met.body,d):
                 meteorites.append(met)
 
-def move_meteo(met):
-    x=met.dir[0]
-    y=met.dir[1]
-    temp_x=0
-    temp_y=0
-    if x==0 and y!=0:
-        met.body.y += y//abs(y)*met.vel
-    elif y==0 and x!=0:
-        met.body.x +=x//abs(x)*met.vel
-    elif x!=0 and y!=0:
-        #wir aproximieren vom Richtungsvektor eine Rate, wie viele pixel nach x bevor ein pixel nach y bewegt wird
-        #bzw. andersherum, je nachdem in welche Richtung am stärksten ist
-        if abs(x)>abs(y):
-            a=x
-            n=1//(abs(y)/abs(x)) #anzahl der schritte nach x pro ein step in Richtung y
-        else:
-            a=y
-            n=1//(abs(x)/abs(y))
+def construct_portal(x_change,y_change,x,y,width,height,walls,portals):
+    portals.append(Portal(x_change,y_change,x,y,width,height))
+    if height>width:
+        walls.append(Wall(x-5,y-5,width+10,10))
+        walls.append(Wall(x-5,y+height-5,10+width,10))
+    else:
+        walls.append(Wall(x-5,y-5,10,height+10))
+        walls.append(Wall(x+width-5,y-5,10,height+10))
 
-        #Damit wenn mehr als ein pixel pro frame bewegt, es nicht zu schlangenlinien kommt,
-        #werden einfach die nächsten bewegungen abgespeichert der Reihe nach so häufig wie
-        #pixel pro frame bewegt werden und dann anschließend der position in x und y zugefügt
-        #anstat immer so und so viele pixel pro frame nur in eine Richtung
-        for i in range(met.vel):
-            if a==x:
-                if met.n<=n:
-                    temp_x += x//abs(x)
-                    met.n +=1
-                else:
-                    temp_y += y//abs(y)
-                    met.n=0
-            elif a==y:
-                if met.n<=n:
-                    temp_y += y//abs(y)
-                    met.n +=1
-                else:
-                    temp_x += x//abs(x)
-                    met.n=0
-        met.body.x += temp_x
-        met.body.y += temp_y
 
 def portation(obj,x,y):
     obj.body.x+=x
@@ -224,19 +235,17 @@ def portation(obj,x,y):
     
 #HANDLING THE INTERACTION OF OBJECTS IN THE GAME
 
-def portal_handler(ship, portals):
+def portal_handler(portals, obj_list):
     for portal in portals:
-        if ship.body.colliderect(portal.body) and not ship.ported:
-            portation(ship,portal.x_change,portal.y_change)
-        for bullet in ship.bullet_list:
-            if bullet.body.colliderect(portal.body) and not bullet.ported:
-                portation(bullet,portal.x_change,portal.y_change)
+        for obj in obj_list:
+            if obj.body.colliderect(portal.body) and not obj.ported:
+                portation(obj,portal.x_change,portal.y_change)
 
 def bullet_handler(shooter,items,hit_by_player_bullets, stops_bullets):
     if shooter.weapon.cd[0] > 0:
         shooter.weapon.cd[0] -=1
     for bullet in shooter.bullet_list:
-            move_meteo(bullet)
+            bullet.move_obj()
             bullet.step+=1
     for obj in hit_by_player_bullets:
         for element in obj:
@@ -258,7 +267,8 @@ def bullet_handler(shooter,items,hit_by_player_bullets, stops_bullets):
                 if element.item_drop==True:
                     if random.randint(0,100)>5:
                         items.append(ship_item(element.body.x,element.body.y,10,10,random_ship_buff([fire_rate,speed_up,shotspeed_up,health_up])))
-        
+                del element
+
 def item_handler(ship,items):
     for item in items:
         if ship.body.colliderect(item.body):
@@ -276,7 +286,7 @@ def meteo_handler(meteorites,ship,walls):
             for wall in walls:
                 if wall.body.colliderect(met.body):
                     meteorites.remove(met)
-        move_meteo(met)      
+        met.move_obj()      
 
 #FUNCTIONS HANDLING USER INPUT AND COMPUTER CONTROLLED ENEMIES
 
@@ -417,7 +427,7 @@ def central_draw(color,rect, adjust_x,adjust_y):
     obj.y+=adjust_y
     pygame.draw.rect(WIN,color,obj)
 
-def draw_window(ship,map_objects):
+def draw_window(ship,map_objects,enemies):
     
     #Text written on the screen
     myfont= pygame.font.SysFont('Comic Sans MS', 40)
@@ -429,13 +439,29 @@ def draw_window(ship,map_objects):
     adjust_y = HEIGHT//2-ship.body.y-ship.body.height
 
     WIN.fill(BLUE)
-    central_draw(SCREEN_COLOR, pygame.Rect(0,0,MAP_SIZE_X,MAP_SIZE_Y), adjust_x, adjust_y)
+    central_draw(SCREEN_COLOR, pygame.Rect(-500,-500,MAP_SIZE_X,MAP_SIZE_Y), adjust_x, adjust_y)
+    WIN.blit(BACKGROUND,(adjust_x,adjust_y))
+    #Drawing enemies and their bullets:
+    for enemy in enemies:
+        try:
+            WIN.blit(enemy.sprite,(enemy.body.x+adjust_x,enemy.body.y+adjust_y))
+        except:
+            central_draw(enemy.color,enemy.body,adjust_x,adjust_y)
+        
+        for bullet in enemy.bullet_list:
+            try:
+                WIN.blit(bullet.sprite,(bullet.body.x+adjust_x,bullet.body.y+adjust_y))
+            except:
+                central_draw(bullet.color,bullet.body,adjust_x,adjust_y)
+
+    #Drawing all map_objects on the screen
     for obj in map_objects:
         for element in obj:
             try:
                 WIN.blit(element.sprite,(element.body.x+adjust_x,element.body.y+adjust_y))
             except:
                 central_draw(element.color,element.body,adjust_x,adjust_y)
+
 
     # for met in meteorites:
     #     #pygame.draw.rect(WIN,BROWN,met.body)
@@ -455,9 +481,10 @@ def draw_window(ship,map_objects):
 
 # MAIN ############################################################################
 
-def main():
+def main_game():
+    pygame.display.set_caption("Astroids")
     #OBJECTS IN THE GAME
-    ship = spaceship([],450,200,SHIP_HEIGHT-2,SHIP_WIDTH-2,YELLOW)
+    ship = spaceship([],750,600,SHIP_HEIGHT-2,SHIP_WIDTH-2,YELLOW)
     enemy = spaceship([],300,200,30,30,RED,True)
     enemy2 = spaceship([],800,800,30,30,RED,True)
     enemies=[enemy,enemy2]
@@ -467,16 +494,16 @@ def main():
     items=[]
 
     walls=[]
-    walls.append(wall(50,50,150,150))
+    walls.append(Wall(50,50,150,150))
     portals = []
-    portals.append(Portal(100,100,200,200,10,50))
-    portals.append(Portal(-100,-100,300,300,10,50))
-
+    
+    construct_portal(100,100,200,200,5,50, walls, portals)
+    construct_portal(-100,-100,300,300,5,50,walls,portals)
     hit_by_player_bullets=[meteorites,enemies]
     stops_bullets=[meteorites,walls,enemies]
 
-    map_objects=[ship.bullet_list,meteorites,items,walls,portals]
-
+    map_objects=[ship.bullet_list,meteorites,items,portals,walls]
+    
     #GAME LOOP
     clock=pygame.time.Clock()
     run = True
@@ -484,7 +511,8 @@ def main():
         clock.tick(FPS)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                run = False            
+                run = False  
+                quit()          
         key_pressed = pygame.key.get_pressed()
         
         ###########Shooting##############
@@ -496,11 +524,19 @@ def main():
         ##MOVEMENT############
         ship_movement(ship,map_objects, key_pressed)
 
-        portal_handler(ship,portals)
-             
+        ##PORTALS########
+        all_obj = [ship]+portals + walls + items+ enemies+meteorites+ship.bullet_list + enemy.bullet_list + enemy2.bullet_list
+        portables = []
+        for p in all_obj:
+            if isinstance(p,Portable):
+                portables.append(p)
+        
+        portal_handler(portals,portables)
+        
+        ##BULLETS#######
         bullet_handler(ship,items, hit_by_player_bullets, stops_bullets) 
         
-        #ITEMS
+        ##ITEMS########
         item_handler(ship,items)
         
         #METEORITEN SPAWN
@@ -515,13 +551,52 @@ def main():
         ship.tick()
         for bullet in ship.bullet_list:
             bullet.tick()
-
+        for astroid in meteorites:
+            astroid.tick()
+        
+        
         if ship.health <=0:
-            end_screen()
+            draw_window(ship,map_objects,enemies)
+            run=False
         else:
-            draw_window(ship,map_objects+[enemies,enemy.bullet_list,enemy2.bullet_list])
-    pygame.quit()
+            draw_window(ship,map_objects,enemies)
+    
+
+def main_menu():
+    pygame.display.set_caption('Start_Menu')
+    run = True
+    clock=pygame.time.Clock()
+    font_large= pygame.font.SysFont('Comic Sans MS', 50)
+    font= pygame.font.SysFont('Comic Sans MS', 20)
+    First_time=True
+
+    while run:
+        mouse = pygame.mouse.get_pos()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                quit()
+                run = False
+                
+
+            if 400 + 100 > mouse[0] > 400 and 275 + 50 > mouse[1] > 275:
+                pygame.draw.rect(WIN, RED, (400, 275, 100, 50))
+
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    main_game()
+                    First_time=False
+            else:
+                pygame.draw.rect(WIN, WHITE, (400, 275, 100, 50)) 
+            if First_time:
+                WIN.blit(font_large.render("ASTROIDS", True, (255, 255, 255)), (325, 50)) 
+                WIN.blit(font.render("Play", True, (0, 0, 0)), (417, 285))
+            else:
+                WIN.blit(font_large.render("You died!", True, RED), (340, 50)) 
+                WIN.blit(font.render("Try Again", True, (0, 0, 0)), (400, 285))
+
+
+        pygame.display.flip() 
+        clock.tick(FPS)       
 
 
 if __name__ == "__main__":
-    main()
+    main_menu()
