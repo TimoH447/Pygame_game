@@ -28,6 +28,7 @@ STONE=pygame.image.load('stone.png')
 BACKGROUND = pygame.image.load('background2.png')
 BACKGROUND=pygame.transform.scale(BACKGROUND, (2000,2000))
 PORTAL_FLUID = pygame.image.load('portal_fluid.png')
+BLUELINE = pygame.image.load('blueline.png')
 
 #COLORS
 BLACK = (0,0,0)
@@ -130,6 +131,13 @@ class Portal:
         self.body = pygame.Rect(x,y,height, width)
         self.sprite = pygame.transform.scale(PORTAL_FLUID,(height, width))
 
+class Line:
+    color = BLUE
+    solid= True
+    sprite=BLUELINE
+    def __init__(self,x,y,width,height):
+        self.body = pygame.Rect(x,y,width, height)
+
 class Astroid(Moveable,Portable):
     n=0
     item_drop = True
@@ -217,14 +225,19 @@ def spawn_met(meteorites,ship, d):
             if not distance_rect(ship.body,met.body,d):
                 meteorites.append(met)
 
-def construct_portal(x_change,y_change,x,y,width,height,walls,portals):
-    portals.append(Portal(x_change,y_change,x,y,width,height))
+def construct_portal(a,b,x,y,width,height,walls,portals):
+    portals.append(Portal(a-x,b-y,x,y,width,height))
+    portals.append(Portal(x-a,y-b,a,b,width,height))
     if height>width:
         walls.append(Wall(x-5,y-5,width+10,10))
         walls.append(Wall(x-5,y+height-5,10+width,10))
+        walls.append(Wall(a-5,b-5,width+10,10))
+        walls.append(Wall(a-5,b+height-5,10+width,10))
     else:
         walls.append(Wall(x-5,y-5,10,height+10))
         walls.append(Wall(x+width-5,y-5,10,height+10))
+        walls.append(Wall(a-5,b-5,10,height+10))
+        walls.append(Wall(a+width-5,b-5,10,height+10))
 
 
 def portation(obj,x,y):
@@ -286,6 +299,7 @@ def meteo_handler(meteorites,ship,walls):
             for wall in walls:
                 if wall.body.colliderect(met.body):
                     meteorites.remove(met)
+                    break
         met.move_obj()      
 
 #FUNCTIONS HANDLING USER INPUT AND COMPUTER CONTROLLED ENEMIES
@@ -441,6 +455,13 @@ def draw_window(ship,map_objects,enemies):
     WIN.fill(BLUE)
     central_draw(SCREEN_COLOR, pygame.Rect(-500,-500,MAP_SIZE_X,MAP_SIZE_Y), adjust_x, adjust_y)
     WIN.blit(BACKGROUND,(adjust_x,adjust_y))
+
+    WIN.blit(BLUELINE,(1530+adjust_x,1000+adjust_y))
+    WIN.blit(BLUELINE,(1530+adjust_x,1300+adjust_y))
+
+    WIN.blit(BLUELINE,(450+adjust_x,300+adjust_y))
+    WIN.blit(BLUELINE,(450+adjust_x,600+adjust_y))
+
     #Drawing enemies and their bullets:
     for enemy in enemies:
         try:
@@ -462,7 +483,7 @@ def draw_window(ship,map_objects,enemies):
             except:
                 central_draw(element.color,element.body,adjust_x,adjust_y)
 
-
+    
     # for met in meteorites:
     #     #pygame.draw.rect(WIN,BROWN,met.body)
     #     central_draw(BROWN,met.body,adjust_x,adjust_y)
@@ -484,9 +505,9 @@ def draw_window(ship,map_objects,enemies):
 def main_game():
     pygame.display.set_caption("Astroids")
     #OBJECTS IN THE GAME
-    ship = spaceship([],750,600,SHIP_HEIGHT-2,SHIP_WIDTH-2,YELLOW)
+    ship = spaceship([],500,800,SHIP_HEIGHT-2,SHIP_WIDTH-2,YELLOW)
     enemy = spaceship([],300,200,30,30,RED,True)
-    enemy2 = spaceship([],800,800,30,30,RED,True)
+    enemy2 = spaceship([],1750,1250,30,30,RED,True)
     enemies=[enemy,enemy2]
 
     meteorites=[]
@@ -494,11 +515,19 @@ def main_game():
     items=[]
 
     walls=[]
-    walls.append(Wall(50,50,150,150))
+    walls.append(Wall(400,100,300,200))
+    walls.append(Wall(700,130,950,150))
+    walls.append(Wall(1400,280,250,620))
+    walls.append(Wall(0,900,2000,100))
+    walls.append(Wall(400,1000,150,800))
+    walls.append(Wall(550,1650,1100,150))
+    walls.append(Wall(1450,1550,200,300))
+    walls.append(Wall(950,1000,50,300))
+
     portals = []
     
-    construct_portal(100,100,200,200,5,50, walls, portals)
-    construct_portal(-100,-100,300,300,5,50,walls,portals)
+    construct_portal(750,1150,1100,650,5,50, walls, portals)
+    
     hit_by_player_bullets=[meteorites,enemies]
     stops_bullets=[meteorites,walls,enemies]
 
@@ -522,7 +551,7 @@ def main_game():
         shoot(ship,key_pressed)
         
         ##MOVEMENT############
-        ship_movement(ship,map_objects, key_pressed)
+        ship_movement(ship,map_objects+[[Line(450,300,6,600),Line(1530,1000,6,600)]], key_pressed)
 
         ##PORTALS########
         all_obj = [ship]+portals + walls + items+ enemies+meteorites+ship.bullet_list + enemy.bullet_list + enemy2.bullet_list
