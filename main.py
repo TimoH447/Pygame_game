@@ -8,7 +8,7 @@ WIDTH, HEIGHT = 900, 500
 WIN = pygame.display.set_mode((WIDTH,HEIGHT))
 pygame.display.set_caption("Platzhalter")
 
-FPS = 90
+FPS = 60
 
 #MAP AND PLAYER PROPERTIES
 MAP_SIZE_X = 2000
@@ -20,15 +20,15 @@ COMET_CAP = 10
 SHIP_HEIGHT, SHIP_WIDTH = 19, 19
 
 #IMAGES and SPRITES
-SHIP_IMG = pygame.image.load("Schiff.png")
+SHIP_IMG = pygame.image.load("tiles/Schiff.png")
 SHIP_IMG = pygame.transform.scale(SHIP_IMG, (SHIP_HEIGHT,SHIP_WIDTH))
-ASTEROID= pygame.image.load('asteroid2.jpg')
+ASTEROID= pygame.image.load('tiles/asteroid2.jpg')
 ASTEROID=pygame.transform.scale(ASTEROID, (15,15))
-STONE=pygame.image.load('stone.png')
-BACKGROUND = pygame.image.load('background2.png')
+STONE=pygame.image.load('tiles/stone.png')
+BACKGROUND = pygame.image.load('tiles/background2.png')
 BACKGROUND=pygame.transform.scale(BACKGROUND, (2000,2000))
-PORTAL_FLUID = pygame.image.load('portal_fluid.png')
-BLUELINE = pygame.image.load('blueline.png')
+PORTAL_FLUID = pygame.image.load('tiles/portal_fluid.png')
+BLUELINE = pygame.image.load('tiles/blueline.png')
 
 #COLORS
 BLACK = (0,0,0)
@@ -121,6 +121,8 @@ class Weaponized:
         self.bullet_list.append(bullet)
     def remove_bullet(self,bullet):
         self.bullet_list.remove(bullet)
+    def swap_weapon(self, new_weapon):
+        self.weapon = new_weapon
 
 class Portal:
     color=LILA
@@ -157,14 +159,27 @@ class Bullet(Moveable,Portable):
         self.range = range
         self.step= step
         self.color=color
-        
-    
-class ship_item:
+
+class Item:
     solid= False
     color=GREEN
-    def __init__(self,x,y,width,height,func):
+    def __init__(self,x,y,width,height):
         self.body = pygame.Rect(x,y,height,width)
+    
+class Ship_Item(Item):
+    def __init__(self,x,y,width,height,func):
+        Item.__init__(self,x,y,width,height)
         self.effect = func
+    def On_ship_collision(self,ship):
+        self.effect(ship)
+
+class Weapon_Item(Item):
+    def __init__(self,x,y,width,height,weapon):
+        Item.__init__(self,x,y,width,height)
+        self.weapon=weapon
+    def On_ship_collision(self,ship):
+        ship.weapon_change(self.weapon)
+    
         
 class Wall:
     solid = True
@@ -176,7 +191,7 @@ class Wall:
 class spaceship(Portable,Weaponized):
     color=LILA
     solid=True
-    def __init__(self,bullet_list, x,y,height,width,bullet_color,item_drop=False,vel=3, health=50,shotspeed = 3,shotrange=100, shotdamage= 10,ori='right', score=0):
+    def __init__(self,bullet_list, x,y,height,width,bullet_color,item_drop=False,vel=3, health=10,shotspeed = 3,shotrange=100, shotdamage= 10,ori='right', score=0):
         Portable.__init__(self,False)
         Weaponized.__init__(self,bullet_list,bullet_color,Weapon([0,40],shotdamage,shotrange,shotspeed))
         self.body = pygame.Rect(x,y,height, width)
@@ -187,6 +202,17 @@ class spaceship(Portable,Weaponized):
         self.score = score
     def change_score(self,n):
         self.score = n
+
+def getClosest(pos, objects):
+    index = 0
+    
+    dist = abs(pos[0]-objects[0][0])+abs(pos[1]-objects[0][1])
+    for i in range(0,len(objects)):
+        temp = abs(pos[0]-objects[i][0])+abs(pos[1]-objects[i][1])
+        if temp<dist:
+            dist = temp
+            index = i
+    return index
 
 #ITEM FUNCTIONS
 def speed_up(obj):
@@ -260,6 +286,8 @@ def bullet_handler(shooter,items,hit_by_player_bullets, stops_bullets):
     for bullet in shooter.bullet_list:
             bullet.move_obj()
             bullet.step+=1
+            if bullet.step>bullet.range:
+                shooter.remove_bullet(bullet)
     for obj in hit_by_player_bullets:
         for element in obj:
             for bullet in shooter.bullet_list:
@@ -279,13 +307,13 @@ def bullet_handler(shooter,items,hit_by_player_bullets, stops_bullets):
                 obj.remove(element)
                 if element.item_drop==True:
                     if random.randint(0,100)>5:
-                        items.append(ship_item(element.body.x,element.body.y,10,10,random_ship_buff([fire_rate,speed_up,shotspeed_up,health_up])))
+                        items.append(Ship_Item(element.body.x,element.body.y,10,10,random_ship_buff([fire_rate,speed_up,shotspeed_up,health_up])))
                 del element
 
 def item_handler(ship,items):
     for item in items:
         if ship.body.colliderect(item.body):
-            item.effect(ship)
+            item.On_ship_collision(ship)
             items.remove(item)
 
 def meteo_handler(meteorites,ship,walls):
@@ -375,7 +403,8 @@ def shoot(actor,key_pressed):
 
 #Turn numbers into keyboard input, so that the computer can use the same functions
 #as the player
-def get_input(input):
+#there are 0-7 possible keys
+def emulateKeypress(input):
     keys_pressed={
         pygame.K_a: False,
         pygame.K_s: False,
@@ -407,7 +436,7 @@ def get_input(input):
 
 def enemy_handler(enemies,map_objects):
     for enemy in enemies:
-        key_pressed= get_input([random.randint(4,7)]) #generates random actions(moving,shooting)
+        key_pressed= emulateKeypress([random.randint(4,7)]) #generates random actions(moving,shooting)
         ship_movement(enemy, map_objects,key_pressed)
         shoot(enemy,key_pressed)
         
@@ -501,9 +530,29 @@ def draw_window(ship,map_objects,enemies):
     pygame.display.update()
 
 # MAIN ############################################################################
+def win_scene():
+    run=True
+    clock=pygame.time.Clock()
+    font_large= pygame.font.SysFont('Comic Sans MS', 50)
+    
+    while run:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False  
+                quit()
+        WIN.fill(BLACK)
+        WIN.blit(font_large.render('YOU WIN',False, WHITE),(WIDTH//2,HEIGHT//2))
+        pygame.display.flip()
+        clock.tick(FPS)
 
-def main_game():
+def onDeath(ship,map_objects,enemies):
+    draw_window(ship,map_objects,enemies)
+    print('Ende')
+    #win_scene()
+
+def main_game(aicontrol=None, updateReward = None):
     pygame.display.set_caption("Astroids")
+    next_scene='lose'
     #OBJECTS IN THE GAME
     ship = spaceship([],500,800,SHIP_HEIGHT-2,SHIP_WIDTH-2,YELLOW)
     enemy = spaceship([],300,200,30,30,RED,True)
@@ -532,7 +581,8 @@ def main_game():
     stops_bullets=[meteorites,walls,enemies]
 
     map_objects=[ship.bullet_list,meteorites,items,portals,walls]
-    
+    #Parameter für ai
+    params= []
     #GAME LOOP
     clock=pygame.time.Clock()
     run = True
@@ -541,8 +591,18 @@ def main_game():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False  
-                quit()          
-        key_pressed = pygame.key.get_pressed()
+                quit()
+        params = {
+            'health':ship.health,
+            'player_posx':ship.body.x,
+            'player_posy':ship.body.y,
+            'astroids': [[m.body.x,m.body.y] for m in meteorites]
+        }          
+        if aicontrol != None:
+            key_pressed = emulateKeypress(aicontrol(params))
+        else:
+            key_pressed = pygame.key.get_pressed()
+
         
         ###########Shooting##############
         #1.wenn schießen nicht auf cooldown ist, wird ein Schuss hinzugefügt mit der richtung in die geschossen wird
@@ -583,49 +643,18 @@ def main_game():
         for astroid in meteorites:
             astroid.tick()
         
-        
+        #Check PlayerDeath
         if ship.health <=0:
-            draw_window(ship,map_objects,enemies)
-            run=False
+            onDeath(ship,map_objects,enemies)
+            try:
+                updateReward(-10000)
+            except:
+                pass
+            run = False
         else:
             draw_window(ship,map_objects,enemies)
     
-
-def main_menu():
-    pygame.display.set_caption('Start_Menu')
-    run = True
-    clock=pygame.time.Clock()
-    font_large= pygame.font.SysFont('Comic Sans MS', 50)
-    font= pygame.font.SysFont('Comic Sans MS', 20)
-    First_time=True
-
-    while run:
-        mouse = pygame.mouse.get_pos()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                quit()
-                run = False
-                
-
-            if 400 + 100 > mouse[0] > 400 and 275 + 50 > mouse[1] > 275:
-                pygame.draw.rect(WIN, RED, (400, 275, 100, 50))
-
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    main_game()
-                    First_time=False
-            else:
-                pygame.draw.rect(WIN, WHITE, (400, 275, 100, 50)) 
-            if First_time:
-                WIN.blit(font_large.render("ASTROIDS", True, (255, 255, 255)), (325, 50)) 
-                WIN.blit(font.render("Play", True, (0, 0, 0)), (417, 285))
-            else:
-                WIN.blit(font_large.render("You died!", True, RED), (340, 50)) 
-                WIN.blit(font.render("Try Again", True, (0, 0, 0)), (400, 285))
-
-
-        pygame.display.flip() 
-        clock.tick(FPS)       
-
+    return next_scene
 
 if __name__ == "__main__":
-    main_menu()
+    main_game()
