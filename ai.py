@@ -16,9 +16,9 @@ def paramsToState(params):
     x = params['player_posx']
     y = params['player_posy']
     
-    if params['astroids'] !=[]:
-        close_ast = main.getClosest((x,y),params['astroids'])
-        dist = str(int((x-params['astroids'][close_ast][0])/20))+str(int((y-params['astroids'][close_ast][0])/20))
+    if params['asteroids'] !=[]:
+        close_ast = main.getClosest((x,y),params['asteroids'])
+        dist = str(int((x-params['asteroids'][close_ast][0])/20))+str(int((y-params['asteroids'][close_ast][0])/20))
     else:
         dist = str(1000)+'_'+str(1000)
 
